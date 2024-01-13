@@ -7,7 +7,8 @@ import pandas as pd
 from datetime import datetime
 from PIL import Image
 import folium
-#from streamlit_folium import folium_stat
+import streamlit_folium
+#from streamlit_folium import folium_static
 
 # Lendo o arquivo usando o pd:
 df = pd.read_csv('train.csv')
@@ -66,14 +67,22 @@ df1.loc[:, 'Festival'] = df1.loc[:, 'Festival'].str.strip()
 df1['Time_taken(min)'] = df1['Time_taken(min)'].apply(lambda x: x.split('(min) ')[1] )
 df1['Time_taken(min)'] = df1['Time_taken(min)'].astype(int)
 
-print(df1)
+#===============
+# Novas colunas
+#===============
+
+# Criando a coluna de semanas por ano:
+df1['week_of_year'] = df1['Order_Date'].dt.strftime('%U')
+
+
+
+
 # ============================================================================
 # Título
 # ============================================================================
 
 
 st.header("Título")
-#st.dataframe(df)
 # ============================================================================
 # Barra Lateral
 # ============================================================================
@@ -90,7 +99,7 @@ st.sidebar.markdown("## Selecione uma data limite")
 
 #Filtro de data:
 
-st.sidebar.slider("Até quando?",
+date_slider = st.sidebar.slider("Até quando?",
                    min_value= datetime(2022, 3, 1),
                    value= datetime(2022, 3, 15),
                    max_value= datetime(2022, 3, 31),
@@ -110,7 +119,14 @@ traffic_options = st.sidebar.multiselect(
 st.sidebar.markdown("""---""")
 st.sidebar.markdown("### Powered by Rafael Rezende dos Santos")
 
-# Filtro de datas ----> Criar depois
+# Filtro de datas
+linhas_selecionadas = df1['Order_Date'] < date_slider
+df1 = df1.loc[linhas_selecionadas, : ]
+
+# Filtro por tráfego
+linhas_selecionadas = df1['Road_traffic_density'].isin(traffic_options)
+df1 = df1.loc[linhas_selecionadas, : ]
+
 
 # ________________________
 
@@ -119,7 +135,7 @@ st.sidebar.markdown("### Powered by Rafael Rezende dos Santos")
 # ============================================================================
 
 # Tabelas
-tab1, tab2, tab3 = st.tabs(["Visão Empresa", "Visão Entregador", "Visão Delivery"])
+tab1, tab2, tab3 = st.tabs(["Visão Empresa", "Visão Tática", "Visão Geográfica"])
 
 ## Tabela 1
 with tab1:
@@ -149,16 +165,39 @@ with tab1:
             fig = px.scatter(df_aux, x = 'City', y = 'Road_traffic_density', size = 'ID', color = 'City')
             st.plotly_chart(fig, use_container_width=True)
 
-#Continuar daqui
+#st.dataframe(df1)
+
+
 ## Tabela 2
 with tab2:
-
-    pass
-
+    with st.container():
+        st.markdown("## Pedidos por semana")
+        # Quantidade de pedidos / Número único de entregadores por semana
+        df_aux01 = df1.loc[:, ['ID', 'week_of_year']].groupby(['week_of_year']).count().reset_index()
+        df_aux02 = df1.loc[:, ['Delivery_person_ID', 'week_of_year']].groupby('week_of_year').nunique().reset_index()
+        df_aux = pd.merge(df_aux01, df_aux02, how ='inner')
+        df_aux['order_by_deliver'] = df_aux['ID'] / df_aux['Delivery_person_ID']
+        fig = px.line(df_aux, x='week_of_year', y= 'order_by_deliver')
+        st.plotly_chart(fig, use_container_width=True)
+    with st.container():
+        # Pensar em um outro gráfico pra colocar aqui!
+        pass
 
 ## Tabela 3
 with tab3:
 
-    pass
+    with st.container():
+        st.markdown("## Country Maps")
+        df_aux = df1.loc[:, ["City", "Road_traffic_density", "Delivery_location_latitude", "Delivery_location_longitude"]].groupby(["City", "Road_traffic_density"]).median().reset_index()
+        
+        map = folium.Map()
+        for index, location_info in df_aux.iterrows():
+            folium.Marker([location_info['Delivery_location_latitude'],
+                        location_info['Delivery_location_longitude']],
+                        popup=location_info[['City', 'Road_traffic_density']]).add_to(map)
 
+        streamlit_folium.folium_static(map, width=1024, height=600)
+
+        
+        
 #
