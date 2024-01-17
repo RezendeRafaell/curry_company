@@ -197,3 +197,4 @@ with tab3:
                         popup=location_info[['City', 'Road_traffic_density']]).add_to(map)
 
         streamlit_folium.folium_static(map, width=1024, height=600)
+

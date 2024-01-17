@@ -1,4 +1,3 @@
-# Começar amanhã (13/06)
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go 
@@ -219,3 +218,4 @@ with tab1:
             df3 = pd.concat([df_aux01, df_aux02, df_aux03]).reset_index(drop=True)
 
             st.dataframe(df3)
+#
