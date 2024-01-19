@@ -1,3 +1,4 @@
+import numpy as np
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go 
@@ -92,7 +93,6 @@ def traffic_order_city(df1):
 
     return fig
 
-
 def oder_by_traffic_and_city(df1):
     df_aux = (df1.loc[:, ['ID', 'City', 'Road_traffic_density']]
               .groupby(['City', 'Road_traffic_density'])
@@ -127,4 +127,107 @@ def country_maps(df1):
     streamlit_folium.folium_static(map, width=1024, height=600)
 
     return None
+   
+def top_delivery(df1, top_asc ):
+    
+    df2 = (df1.loc[:, ['Delivery_person_ID', 'City', 'Time_taken(min)']]
+        .groupby(['City', 'Delivery_person_ID'])
+        .min().sort_values(['City', 'Time_taken(min)'], ascending=top_asc).reset_index())
+    
+    df_aux01 = df2.loc[df2['City'] == 'Metropolitian', :].head(10)
+    df_aux02 = df2.loc[df2['City'] == 'Urban', :].head(10)
+    df_aux03 = df2.loc[df2['City'] == 'Semi-Urban', :].head(10)
+    df3 = pd.concat([df_aux01, df_aux02, df_aux03]).reset_index(drop=True)
+    return df3
 
+def avg_delivery_distance(df1):
+    df1['distance'] = df1.loc[:, ['Restaurant_latitude', 'Restaurant_longitude', 'Delivery_location_latitude', 'Delivery_location_longitude']].apply(lambda x: 
+                                            haversine( (x['Restaurant_latitude'], x['Restaurant_longitude']), (x['Delivery_location_latitude'], x['Delivery_location_longitude'] )), axis=1)
+    avg_distance = df1['distance'].mean()
+    
+    return avg_distance
+
+def op_time_delivery(df1, op, Festival):
+    
+    """
+        Calcula o tempo médio com as condições que forem passadas
+
+        Input: 
+            - df1: Dataframe
+            - op: operação pretendida >> "avg_time" para a média de tempo ou "std_time" para o desvio padrão
+            - Festival: "True" para festival no local e "False" para não festival no local
+
+    """
+
+    df_aux = (df1.loc[:, ['Time_taken(min)', 'Festival']]
+            .groupby( 'Festival')
+            .agg({'Time_taken(min)': ['mean', 'std']}))
+
+    df_aux.columns = ['avg_time', 'std_time']
+    df_aux = df_aux.reset_index()
+    
+    if Festival:
+        df_aux = (df_aux.loc[df_aux['Festival'] == "Yes", op])
+        df_aux = np.round(df_aux, 2)
+
+    else: 
+        df_aux = (df_aux.loc[df_aux['Festival'] == "No", op])
+        df_aux = np.round(df_aux, 2)
+    
+    return df_aux
+
+def avg_delivery_distance_by_city(df1):
+    df1['distance'] = (df1.loc[:, ['Restaurant_latitude', 'Restaurant_longitude', 'Delivery_location_latitude', 'Delivery_location_longitude']]
+                       .apply(lambda x: haversine( (x['Restaurant_latitude'], x['Restaurant_longitude']), (x['Delivery_location_latitude'], x['Delivery_location_longitude'] )), axis=1))
+    
+    avg_distance = df1.loc[:, ['City', 'distance']].groupby('City').mean().reset_index()
+    fig = px.pie(avg_distance,
+                values=avg_distance['distance'], 
+                 names=avg_distance['City'],
+                 color_discrete_sequence=px.colors.qualitative.Set1)
+    
+
+    return fig, avg_distance
+
+
+def op_delivery_by_city(df1, option_col):
+    """
+    option_col: 
+        >> "Road_traffic_density" se você deseja buscar por densitidade de tráfego
+        >> "Type_of_order" se você deseja buscar por tipo de pedido
+
+    """
+    df_aux = (df1.loc[:, ['City', 'Time_taken(min)', option_col]]
+            .groupby(['City', option_col])
+            .agg({'Time_taken(min)': ['mean', 'std']}))
+
+    df_aux.columns = ['avg_time', 'std_time']
+    df_aux = df_aux.reset_index()
+    df_aux = (df1.loc[:, ['City', 'Time_taken(min)', option_col]]
+            .groupby(['City', option_col])
+            .agg({'Time_taken(min)': ['mean', 'std']}))
+    df_aux.columns = ['avg_time', 'std_time']
+    df_aux = df_aux.reset_index()
+
+    return df_aux
+
+def avg_time_by_city(df1):
+    df_aux = (df1.loc[:, ['City', 'Time_taken(min)']]
+                .groupby('City')
+                .agg({'Time_taken(min)': ['mean', 'std']}))
+
+    df_aux.columns = ['avg_time', 'std_time']
+    df_aux = df_aux.reset_index()
+    df_aux = df1.loc[:, ['City', 'Time_taken(min)']].groupby('City').agg({'Time_taken(min)': ['mean', 'std']})
+
+    df_aux.columns = ['avg_time', 'std_time']
+
+    df_aux = df_aux.reset_index()
+    fig = go.Figure()
+    fig.add_trace(go.Bar( name = '',
+                        x = df_aux['City'],
+                        y = df_aux['avg_time'],
+                        error_y = dict(type ='data', array=df_aux['std_time'])))
+    fig.update_layout(barmode="group")
+
+    return fig

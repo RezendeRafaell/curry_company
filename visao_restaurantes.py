@@ -9,74 +9,14 @@ from PIL import Image
 import plotly.graph_objects as go
 import folium
 import streamlit_folium
+from utils import *
 #from streamlit_folium import folium_static
 
 # Lendo o arquivo usando o pd:
 df = pd.read_csv('train.csv')
 
 # Limpando os dados
-df1 = df.copy()
-
-# 1. convertendo a coluna Age de texto para número
-linhas_selecionadas = df1["Delivery_person_Age"] != 'NaN '
-df1 = df1.loc[linhas_selecionadas, :].copy()
-
-linhas_selecionadas = df1["Road_traffic_density"] != 'NaN '
-df1 = df1.loc[linhas_selecionadas, :].copy()
-
-linhas_selecionadas = df1["City"] != 'NaN '
-df1 = df1.loc[linhas_selecionadas, :].copy()
-
-linhas_selecionadas = df1["Festival"] != 'NaN '
-df1 = df1.loc[linhas_selecionadas, :].copy()
-df1["multiple_deliveries"] = df1["multiple_deliveries"].astype(str)
-linhas_selecionadas = df1["multiple_deliveries"] != 'NaN '
-df1 = df1.loc[linhas_selecionadas, :].copy()
-
-linhas_selecionadas = df1["multiple_deliveries"] != 'nan'
-df1 = df1.loc[linhas_selecionadas, :].copy()
-
-
-df1['Delivery_person_Age'] = df1['Delivery_person_Age'].astype(int)
-
-# 2. convertendo a coluna Ratings de texto para numero decimal (float)
-df1["Delivery_person_Ratings"] = df1["Delivery_person_Ratings"].astype(float)
-
-# 3. convertendo a coluna de order_date de texto para data
-df1['Order_Date'] = pd.to_datetime(df1['Order_Date'], format = '%d-%m-%Y')
-
-# 4. convertendo mutiple_deliveries de texto para número inteiro (int)
-
-df1['multiple_deliveries'] = df1['multiple_deliveries'].astype(int)
-
-# 5. Removendo os espaços dentro de strings/texto/object
-# df1 = df1.reset_index(drop=True)
-# for i in range(len(df1)):
-#   df1.loc[i, 'ID'] = df1.loc[i,'ID'].strip()
-
-#6. Removendo os espaços dentro de strings/texto/object
-df1.loc[:, 'ID'] = df1.loc[:, 'ID'].str.strip()
-df1.loc[:, 'Road_traffic_density'] = df1.loc[:, 'Road_traffic_density'].str.strip()
-df1.loc[:, 'Type_of_order'] = df1.loc[:, 'Type_of_order'].str.strip()
-df1.loc[:, 'Type_of_vehicle'] = df1.loc[:, 'Type_of_vehicle'].str.strip()
-df1.loc[:, 'City'] = df1.loc[:, 'City'].str.strip()
-df1.loc[:, 'Festival'] = df1.loc[:, 'Festival'].str.strip()
-
-
-df1['Time_taken(min)'] = df1['Time_taken(min)'].apply(lambda x: x.split('(min) ')[1] )
-df1['Time_taken(min)'] = df1['Time_taken(min)'].astype(int)
-
-
-#===============
-# Novas colunas
-#===============
-
-# Criando a coluna de semanas por ano:
-df1['week_of_year'] = df1['Order_Date'].dt.strftime('%U')
-
-
-
-
+df1 = clean_data(df)
 # ============================================================================
 # Título
 # ============================================================================
@@ -142,6 +82,21 @@ df1 = df1.loc[linhas_selecionadas,]
 # ============================================================================
 
 # Sem tabelas por enquanto
+#=================================================
+###FUNÇÕES:
+
+# def avg_delivery_distance(df1):
+#     col = ['Restaurant_latitude', 'Restaurant_longitude', 'Delivery_location_latitude', 'Delivery_location_longitude']
+#     df1['distance'] = df1.loc[:, col].apply(lambda x: 
+#                                             haversine( (x['Restaurant_latitude'], x['Restaurant_longitude']), (x['Delivery_location_latitude'], x['Delivery_location_longitude'] )), axis=1)
+#     avg_distance = df1['distance'].mean()
+    
+#     return avg_distance
+
+
+#================================================
+
+
 
 with st.container():
     col1, col2, col3, col4, col5, col6 = st.columns(6)
@@ -152,121 +107,38 @@ with st.container():
 
     with col2:
         st.markdown("###### Distância Média")
-        col = ['Restaurant_latitude', 'Restaurant_longitude', 'Delivery_location_latitude', 'Delivery_location_longitude']
-        #VER DEPOIS O PORQUÊ DE ESTÁ DANDO DIFERENTE.
-        df1['distance'] = df1.loc[:, col].apply(lambda x: 
-                                                haversine( (x['Restaurant_latitude'], x['Restaurant_longitude']), (x['Delivery_location_latitude'], x['Delivery_location_longitude'] )), axis=1)
-        
-
-        avg_distance = df1['distance'].mean()
+        avg_distance = avg_delivery_distance(df1)
         st.write(np.round(avg_distance, 2))
 
     with col3:
-        #st.markdown("###### Tempo de entrega Festival")
         
-        cols = ['Time_taken(min)', 'Festival']
-        df_aux = df1.loc[:, cols].groupby( 'Festival').agg({'Time_taken(min)': ['mean', 'std']})
 
-        df_aux.columns = ['avg_time', 'std_time']
-        df_aux = df_aux.reset_index()
-        #linhas_selecionadas = df_aux['Festival'] == 'Yes'
-        #df_aux = df_aux.loc[linhas_selecionadas, :]
-        df_aux = (df_aux.loc[df_aux['Festival'] == "Yes", "avg_time"])
-        df_aux = np.round(df_aux, 2)
-        # Escrever no write depois
-        col3.metric('Média: ', df_aux) 
+        df_aux = op_time_delivery(df1, op = "avg_time", Festival=True)
+        col3.metric('Tempo médio de entrega: ', df_aux) 
 
     with col4:
-        #st.markdown("###### Desvio padrão de entrega médio com festival")
-        cols = ['Time_taken(min)', 'Festival']
-        df_aux = df1.loc[:, cols].groupby( 'Festival').agg({'Time_taken(min)': ['mean', 'std']})
-        df_aux.columns = ['avg_time', 'std_time']
-        df_aux = df_aux.reset_index()
-        #linhas_selecionadas = df_aux['Festival'] == 'Yes'
-        #df_aux = df_aux.loc[linhas_selecionadas, :]
-        df_aux = (df_aux.loc[df_aux['Festival'] == "Yes", "std_time"])
-        df_aux = np.round(df_aux, 2)
-        col4.metric('STD Festival: ', df_aux)
+        st.markdown("###### Desvio padrão de entrega com festival")
+        df_aux = op_time_delivery(df1, op="std_time", Festival=True)
+        col4.metric("", df_aux)
 
 
 
     with col5:
-        #st.markdown("###### Tempo de entrega sem Festival")
-        cols = ['Time_taken(min)', 'Festival']
-        df_aux = df1.loc[:, cols].groupby( 'Festival').agg({'Time_taken(min)': ['mean', 'std']})
-        df_aux.columns = ['avg_time', 'std_time']
-        df_aux = df_aux.reset_index()
-        df_aux = (df_aux.loc[df_aux['Festival'] == "No", "avg_time"])
-        df_aux = np.round(df_aux, 2)
-        col5.metric('Tempo sem festival: ', df_aux)
+        st.markdown("###### Tempo de entrega sem Festival")
+        df_aux = op_time_delivery(df1, op="avg_time", Festival=False)
+        col5.metric("",df_aux)
+
+
 
     with col6   :
-        #st.markdown("###### Desvio padrão de entrega médio sem festival")
-        cols = ['Time_taken(min)', 'Festival']
-        df_aux = df1.loc[:, cols].groupby( 'Festival').agg({'Time_taken(min)': ['mean', 'std']})
-        df_aux.columns = ['avg_time', 'std_time']
-        df_aux = df_aux.reset_index()
-        df_aux = (df_aux.loc[df_aux['Festival'] == "No", "std_time"])
-        df_aux = np.round(df_aux, 2)
+
+        df_aux = op_time_delivery(df1, op="std_time", Festival=False)
         col6.metric('STD sem festival: ', df_aux)
 
-with st.container():
-        st.markdown("### Distância média dos restaurantes e dos locais de entrega")
-        col = ['Restaurant_latitude', 'Restaurant_longitude', 'Delivery_location_latitude', 'Delivery_location_longitude']
-        df1['distance'] = df1.loc[:, col].apply(lambda x: haversine( (x['Restaurant_latitude'], x['Restaurant_longitude']), (x['Delivery_location_latitude'], x['Delivery_location_longitude'] )), axis=1)
-        avg_distance = df1.loc[:, ['City', 'distance']].groupby('City').mean().reset_index()
-
-        #avg_distance
-        # Entender melhor:
-        fig = go.Figure(data=[go.Pie(labels=avg_distance['City'], values=avg_distance['distance'], pull=[0,0.2,0])])
-        st.plotly_chart(fig)
 
 with st.container():
-    st.markdown("## Tempo médio por cidade")
-    # Gráfico de barras
-    cols = ['City', 'Time_taken(min)']
-    df_aux = df1.loc[:, cols].groupby('City').agg({'Time_taken(min)': ['mean', 'std']})
-
-    df_aux.columns = ['avg_time', 'std_time']
-    df_aux = df_aux.reset_index()
-    cols = ['City', 'Time_taken(min)']
-    df_aux = df1.loc[:, cols].groupby('City').agg({'Time_taken(min)': ['mean', 'std']})
-
-    df_aux.columns = ['avg_time', 'std_time']
-
-    df_aux = df_aux.reset_index()
-    fig = go.Figure()
-    fig.add_trace(go.Bar( name = '',
-                        x = df_aux['City'],
-                        y = df_aux['avg_time'],
-                        error_y = dict(type ='data', array=df_aux['std_time'])))
-    fig.update_layout(barmode="group")
-    st.plotly_chart(fig)
-
-
-with st.container():
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(" O tempo médio e o desvio padrão de entrega por cidade ")
-        cols = ['City', 'Time_taken(min)', 'Type_of_order']
-        df_aux = (df1.loc[:, cols]
-                  .groupby(['City', 'Type_of_order'])
-                  .agg({'Time_taken(min)': ['mean', 'std']}))
-        df_aux.columns = ['avg_time', 'std_time']
-        df_aux = df_aux.reset_index()
-        st.dataframe(df_aux)
-
-
-
-    with col2:
         st.markdown("### Tempo médio de entrega por cidade e por tipo de tráfego")
-        # Gráfico Sunbust
-        df_aux = (df1.loc[:, ['City', 'Time_taken(min)', 'Road_traffic_density']]
-                  .groupby(['City', 'Road_traffic_density'])
-                  .agg({'Time_taken(min)': ['mean', 'std']}))
-        
-        df_aux.columns = ['avg_time', 'std_time']
-        df_aux = df_aux.reset_index()
+        df_aux = op_delivery_by_city(df1, option_col="Road_traffic_density")
         fig = px.sunburst(df_aux, 
                           path=['City', 'Road_traffic_density' ],
                           values='avg_time',
@@ -274,6 +146,44 @@ with st.container():
                           color_continuous_scale = 'RdBu',
                           color_continuous_midpoint=np.average(df_aux['std_time']))
         st.plotly_chart(fig)
+
+with st.container():
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("## Tempo médio por cidade")
+        fig = avg_time_by_city(df1)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        st.markdown("## Tempo médio e o desvio padrão de entrega por cidade ")
+        df_aux = op_delivery_by_city(df1, option_col="Type_of_order")
+        st.dataframe(df_aux, use_container_width=True)
+
+
+with st.container():
+    st.markdown("### Distância média dos restaurantes e os locais de entrega por cidade")
+    col1, col2 = st.columns(2)
+    with col1:
+
+        fig, _ = avg_delivery_distance_by_city(df1)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        st.markdown("")
+        st.markdown("")
+        st.markdown("")
+        st.markdown("")
+        st.markdown("")
+        st.markdown("")
+        st.markdown("")
+        st.markdown("")
+        st.markdown("")
+        st.markdown("")
+        st.markdown("")
+        _, avg_distance = avg_delivery_distance_by_city(df1)
+        avg_distance.rename(columns ={"City" : "Tipos_de_cidade", "distance": "Distancia_media_das_entregas"})
+        st.dataframe(avg_distance) 
+
 
 
     
