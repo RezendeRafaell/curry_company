@@ -8,11 +8,15 @@ from datetime import datetime
 from PIL import Image
 import folium
 import streamlit_folium
-from utils import *
+from pages.utils.util import *
 #from streamlit_folium import folium_static
 
+st.set_page_config(page_title = "Visão Empresa", layout="wide")
+#st.set_page_config(pages_title = "Visão Entregadores", layout="wide")
+
+
 # Lendo o arquivo:
-df = pd.read_csv('train.csv')
+df = pd.read_csv('pages/utils/train.csv')
 # Limpeza e tratamento:
 df1 = clean_data(df)
 
@@ -28,8 +32,9 @@ st.header("Visão da Empresa")
 # Barra Lateral
 # ============================================================================
 
-image_path = "/home/rafael/Desktop/comunidadeds/FTC/projeto_copia/Imagem1.jpg"
-image = Image.open(image_path)
+#image_path = "/home/rafael/Desktop/data_projects/pages/utils/"
+image = Image.open("curry_image.jpeg")
+
 st.sidebar.image(image, width=140)
 
 st.sidebar.markdown("# Curry Company")

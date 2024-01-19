@@ -9,11 +9,14 @@ from PIL import Image
 import plotly.graph_objects as go
 import folium
 import streamlit_folium
-from utils import *
+from pages.utils.util import *
 #from streamlit_folium import folium_static
 
+st.set_page_config(page_title = "Visão Restaurantes", layout="wide")
+
+
 # Lendo o arquivo usando o pd:
-df = pd.read_csv('train.csv')
+df = pd.read_csv('pages/utils/train.csv')
 
 # Limpando os dados
 df1 = clean_data(df)
@@ -28,8 +31,8 @@ st.header("Visão dos restaurantes")
 # ============================================================================
 
 
-image_path = "/home/rafael/Desktop/comunidadeds/FTC/projeto_copia/Imagem1.jpg"
-image = Image.open(image_path)
+# image_path = "/home/rafael/Desktop/data_projects/pages/utils/"
+image = Image.open("curry_image.jpeg")
 st.sidebar.image(image, width=140)
 
 st.sidebar.markdown("# Curry Company")
@@ -101,32 +104,29 @@ df1 = df1.loc[linhas_selecionadas,]
 with st.container():
     col1, col2, col3, col4, col5, col6 = st.columns(6)
     with col1:
-        st.markdown("###### Entregadores únicos")
         delivery_unique = len(df1.loc[:, 'Delivery_person_ID'].unique())
-        st.write(delivery_unique)
+        col1.metric("Entregadores únicos",delivery_unique)
 
     with col2:
-        st.markdown("###### Distância Média")
         avg_distance = avg_delivery_distance(df1)
-        st.write(np.round(avg_distance, 2))
+        col2.metric("Distância Média",np.round(avg_distance, 2))
+
 
     with col3:
-        
-
         df_aux = op_time_delivery(df1, op = "avg_time", Festival=True)
-        col3.metric('Tempo médio de entrega: ', df_aux) 
+        col3.metric('Tempo médio: ', df_aux) 
 
     with col4:
-        st.markdown("###### Desvio padrão de entrega com festival")
+        #st.markdown("###### Desvio padrão de entrega com festival")
         df_aux = op_time_delivery(df1, op="std_time", Festival=True)
-        col4.metric("", df_aux)
+        col4.metric("STD entrega:", df_aux)
 
 
 
     with col5:
-        st.markdown("###### Tempo de entrega sem Festival")
+        #st.markdown("###### Tempo de entrega sem Festival")
         df_aux = op_time_delivery(df1, op="avg_time", Festival=False)
-        col5.metric("",df_aux)
+        col5.metric("Tempo Médio Festival",df_aux)
 
 
 
